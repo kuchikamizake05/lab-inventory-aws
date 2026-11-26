@@ -1,6 +1,6 @@
 # Inventory API: Inventaris Peralatan Laboratorium
 
-Proyek individu Cloud Computing Week 12 oleh Faaid Sakhaa (NIU 539398). Proyek ini menggunakan **Track B: EC2, Docker, dan Amazon ECR**, bukan Track A (EC2 dan RDS MySQL).
+Proyek individu Cloud Computing Week 12 oleh Faaid Sakhaa (NIU 539398). **Track B: EC2, Docker, dan Amazon ECR.**
 
 ## Gambaran proyek
 
@@ -8,7 +8,7 @@ Inventory API adalah aplikasi awal untuk mengelola barang laboratorium melalui o
 
 ```text
 Petugas → Inventory Web (rencana) → Inventory API → penyimpanan sementara di memori
-Git → Docker build → Amazon ECR → EC2 + Docker (rencana deployment)
+Git → Docker build → ECR privat → EC2 Cloud9 → pengujian lewat localhost
 ```
 
 **Batasan:** data disimpan di memori dan hilang ketika aplikasi dihentikan atau dimulai ulang. Belum ada database, autentikasi, maupun antarmuka web. Gunakan data contoh, bukan inventaris asli.
@@ -70,24 +70,33 @@ docker run --rm -p 127.0.0.1:8080:8080 inventory-api:week12
 
 Pada terminal lain, buka `http://localhost:8080/health`. Tekan Ctrl+C pada terminal container untuk menghentikannya. Pemetaan ke `127.0.0.1` membatasi akses port ke komputer tempat Docker berjalan.
 
-## Rencana deployment AWS
+## Deployment AWS dan hasil pengujian
 
-1. Build image Docker dan push ke repository Amazon ECR privat di region lab.
-2. Siapkan EC2 sesuai izin dan anggaran Learner Lab, lalu pasang Docker.
-3. Berikan EC2 izin minimum yang diperlukan untuk menarik image ECR, menggunakan mekanisme yang tersedia di lab.
-4. Pull dan jalankan image di EC2, lalu uji endpoint health dan CRUD dari host EC2.
-5. Catat hasil pengujian dan tangkapan layar aktual. Batasi akses jaringan dan hindari membuka port aplikasi ke internet tanpa kebutuhan.
+Image `week12` dibuat dengan Docker dan diunggah ke ECR privat di `us-east-1`. Pada 26 November 2026, image ditarik dan dijalankan di EC2 `t3.small` melalui Cloud9 (mode SSH), menggunakan kredensial sesi lab. Port aplikasi hanya dipetakan ke loopback EC2.
 
-Rencana tersebut bukan pernyataan bahwa seluruh langkah sudah berhasil. Image `week12` pernah terlihat pada repository ECR lab; konektivitas dan deployment pada EC2 perlu dibuktikan terpisah. Jangan sertakan password, access key, session token, atau data sensitif dalam repository dan screenshot. Periksa biaya lab serta hentikan resource yang tidak lagi diperlukan sesuai ketentuan lab.
+Untuk mengulang dari EC2 dengan Docker dan izin pull ECR:
+
+```bash
+REGISTRY="<account-id>.dkr.ecr.us-east-1.amazonaws.com"
+IMAGE="$REGISTRY/inventory-api-539398:week12"
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
+docker pull "$IMAGE"
+docker run --rm -p 127.0.0.1:8080:8080 "$IMAGE"
+```
+
+Ganti `<account-id>` dengan ID akun lab yang punya akses ke image. Gunakan terminal EC2 lain untuk menjalankan tes. Hasil yang terverifikasi: `GET /health` mengembalikan `{"status":"ok"}`; create **201**, read **200**, update **200**, delete **204**, dan read setelah item dihapus **404**.
+
+Repository berisi starter API; Inventory Web dan pipeline CI/CD belum diimplementasikan. Tangkapan layar AWS ada di laporan tugas, bukan di repository publik.
 
 ## Membuka file Git bundle
 
-Jika proyek diterima sebagai file `.bundle`, clone dari folder yang berisi bundle:
+Git bundle adalah arsip repository Git yang bisa diklon tanpa internet. Ekstrak ZIP pengumpulan terlebih dahulu, lalu buka terminal di folder yang berisi file `.bundle`:
 
 ```sh
 git clone 539398_CC_Repository_updated.bundle inventory-project
 cd inventory-project
 git log --oneline
+node --test api.test.mjs
 ```
 
 Sesuaikan nama file jika nama bundle berbeda. Bundle menyertakan riwayat Git yang tersedia saat dibuat; jalankan panduan lokal di atas setelah clone.
